@@ -1,0 +1,15 @@
+Team Name:ateam
+Member 1 :Harry Bovik:bovik@cs.cmu.edu
+Measuring performance with gettimeofday().
+
+Results for libc malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes    0%      12  0.000002  5455
+Total           0%      12  0.000002  5455
+
+Results for mm malloc:
+trace  valid  util     ops      secs  Kops
+ 0       yes   66%      12  0.000009  1304
+Total          66%      12  0.000009  1304
+
+Perf index = 40 (util) + 40 (thru) = 80/100
