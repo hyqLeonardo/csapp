@@ -17,80 +17,42 @@
 
 #include <iostream>
 
+#define ALIGNMENT 	4
+/* rounds up to the nearest multiple of ALIGNMENT */
+#define ALIGN(size) (((size) + (ALIGNMENT-1)) & ~0x7)
+
+#define SIZE_T_SIZE  (ALIGN(sizeof(size_t)))
+
+#define PUT(p, val)	(*(unsigned int *)(p)) = (val)
+
 int main() {
-	size_t size = 1024;
-	char *file = "/folder";
-	char cwd[size];
 
-	getcwd(cwd, size);
+	int size = 10;
+	printf("size_t_size is %u\n", SIZE_T_SIZE);
+	printf("aligned size is %u\n", ALIGN(size + SIZE_T_SIZE));
+	printf("NULL is : %d\n", NULL);
 
-	char path[strlen(file) + strlen(cwd) + 1];
-	strcpy(path, cwd);
-	strcat(path, file);
-	printf("%s\n", path);
+	void *ptr = (void *)size;
+	printf("ptr is %p, has length %d, ptr+4 is %p\n", ptr, sizeof(ptr), ptr+4);
+	printf("\n");
 
-	// int open_fd;
-	// if ((open_fd = open(path, O_RDONLY)) < 0) {
-	// 	perror("open file error");
-	// 	exit(1);
-	// }
-
-	// struct stat buffer;
-	// int status;	
-
-	// if (status = stat(path, &buffer) == -1) {
-	// 	printf("no such file\n");
-	// 	return 1;
-	// }
-
-	// char data_buf[buffer.st_size];
-	// if (read(open_fd, data_buf, buffer.st_size) < 0) {
-	// 	perror("read file error");
-	// 	exit(1);
-	// }
-
-	// printf("%s\n", data_buf);
-
-	// printf("%d\n", S_ISREG(buffer.st_mode));
-
-	// DIR *open_dir;
-	// if ((open_dir = opendir(path)) == NULL) {
-	// 	perror("open directory error");
-	// 	exit(1);
-	// }
-	// struct dirent *read_dir;
-	// int i = 0;
-	// while ((read_dir = readdir(open_dir)) != NULL) {
-	// 	printf("%s\n", read_dir->d_name);
-	// }
-	// closedir(open_dir);
-
-	// char *(str[5]);
-	// (*str)[0] = 'a';
-	// (*str)[1] = 'b';
-	// (*str)[2] = 'c';
-	// (*str)[3] = '\0';
-	// printf("print str as a pointer : %p\n", str);
-	// printf("print first char of str : %c\n", **str);
-	// printf("print the address of first char : 0x%x\n", *str);
-
-	char *host_name = "bing.com";
-	struct hostent *host_buf;
-	struct in_addr **addr_list;
+	int a = 0;
+	int data = 8;
+	void *bp = &a;
+	printf("generic pointer bp is at address %p\n", bp);
+	printf("before PUT, int bp point at is %d\n", *(int *)(bp));
+	printf("and the byte after a is %.2x\n", *((char *)(bp) + 4));
+	PUT(bp, data);
+	printf("after PUT, int bp point at is %d\n", *(int *)(bp));
+	printf("and the byte after a is %.2x\n", *((char *)(bp) + 4));
 	int i;
 
-	if ((host_buf = gethostbyname(host_name)) == NULL) {
-		perror("gethostbyname error");
-		return 1;
-	}
-
-	addr_list = (struct in_addr **)host_buf->h_addr_list;
-
-	printf("Official name is : %s\n", host_buf->h_name);
-	for (i = 0; addr_list[i] != NULL; i++) {
-		printf("%s\n", inet_ntoa(*addr_list[0]));	
+	for (i = 0; i < 4; i++) {
+		printf("%.2x ", *((char *)(bp)+i));
 	}
 	printf("\n");
+
+	// printf("content at bp is %s\n", *bp);
 
 
 	return 0;

@@ -140,15 +140,6 @@ void *mm_malloc(size_t size)
     checkheap(__LINE__);
     return ptr;
 }
- //    int newsize = ALIGN(size + SIZE_T_SIZE);
- //    void *p = mem_sbrk(newsize);
- //    if (p == (void *)-1)
- //       return NULL;
- //    else {
- //        *(size_t *)p = size;
- //        return (void *)((char *)p + SIZE_T_SIZE);
- //    }
-
 
 /*
  * mm_free - Freeing a block does nothing.
@@ -278,27 +269,17 @@ void *extend_heap(size_t words)
 void *find_fit(size_t asize)
 {
     /* first fit search */
-    void *ptr;
+    void *nptr = NEXT_BLKP(heap_listp);
+    size_t nsize;
 
-    for (ptr = heap_listp; GET_SIZE(HDRP(ptr)) > 0; ptr = NEXT_BLKP(ptr)) {
-        if (!GET_ALLOC(HDRP(ptr)) && (asize <= GET_SIZE(HDRP(ptr)))) {
-            return ptr;
-        }
+    while((nsize = GET_SIZE(HDRP(nptr))) > 0) {
+        if (!GET_ALLOC(HDRP(nptr)) && nsize >= asize)
+            return nptr;
+        else
+            nptr = NEXT_BLKP(nptr);
     }
     return NULL;    /* no fit */
 }
-
-//     void *nptr = NEXT_BLKP(heap_listp);
-//     size_t nsize;
-
-//     while((nsize = GET_SIZE(HDRP(nptr))) > 0) {
-//         if (!GET_ALLOC(HDRP(nptr)) && nsize >= asize)
-//             return nptr;
-//         else
-//             nptr = NEXT_BLKP(nptr);
-//     }
-//     return NULL;    /* no fit */
-// }
 
 /*
  * place - place requested block at the beginning of free block,
@@ -309,12 +290,12 @@ void place(void *ptr, size_t asize)
     size_t csize = GET_SIZE(HDRP(ptr));
     size_t diff = csize - asize;
 
-    if (diff < (2*DSIZE)) {
+    if (diff < (2*DSIZE)) {     /* use whole block if left size smaller than minimum size */
         PUT(HDRP(ptr), PACK(csize, 1));
         PUT(FTRP(ptr), PACK(csize, 1));
     }
 
-    else {
+    else {                      /* segmente to 2 blocks */
         PUT(HDRP(ptr), PACK(asize, 1));
         PUT(FTRP(ptr), PACK(asize, 1));
         PUT(HDRP(NEXT_BLKP(ptr)), PACK(diff, 0));
