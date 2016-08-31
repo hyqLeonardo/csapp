@@ -1,13 +1,6 @@
 /*
- * mm-naive.c - The fastest, least memory-efficient malloc package.
+ * mm-explicit.c - FILO explicit free list
  * 
- * In this naive approach, a block is allocated by simply incrementing
- * the brk pointer.  A block is pure payload. There are no headers or
- * footers.  Blocks are never coalesced or reused. Realloc is
- * implemented directly using mm_malloc and mm_free.
- *
- * NOTE TO STUDENTS: Replace this header comment with your own header
- * comment that gives a high level description of your solution.
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,6 +81,7 @@ team_t team = {
 
 /* global variables */
 static void *heap_listp;    /* pointer to first block of heap */
+static int  step = 0;       /* step number of trace file */
 
 /* function prototypes for internal helper functions */
 static void checkheap(int lineno);
@@ -193,12 +187,14 @@ void *mm_realloc(void *ptr, size_t size)
  */
 void mm_checkheap(int lineno)
 {
-    // printf("\n");
-    // printf("checkheap called from line : %d\n", lineno);
-    // printf("current heap size is %d bytes\n", mem_heapsize());
-    // printf("block 1 is at address %p, next at %p, succ at %p\n", 
-    //     heap_listp, NEXT_BLKP(heap_listp), GOTO_SUCC(heap_listp));
+    printf("\n");
+    printf("checkheap called from line : %d\n", lineno);
+    printf("current heap size is %d bytes\n", mem_heapsize());
+    printf("block 1 is at address %p, next at %p, succ at %p\n", 
+        heap_listp, NEXT_BLKP(heap_listp), GOTO_SUCC(heap_listp));
 
+    step++;
+    printf("step %d, at trace file row %d\n", step, step+4);
     /* traverse through all blocks in heap */
     int heap_size = mem_heapsize();
     void *begin = mem_heap_lo();
@@ -249,8 +245,8 @@ void mm_checkheap(int lineno)
         int nalloc = GET_ALLOC(HDRP(nptr));
         /* print basic info */
         // printf("block %d has pred at : %p, self at %p, succ at %p, "
-        //     "header size: %d, alloc %d\n", block, goto_pred(ptr), ptr,
-        //     goto_succ(ptr), size, alloc);
+        //     "header size: %d, alloc %d\n", block, GOTO_PRED(ptr), ptr,
+            // GOTO_SUCC(ptr), size, alloc);
         /* check header and footer */
         if (GET(HDRP(ptr)) != GET(FTRP(ptr))) {
             printf("header not equal to footer at block %d, "
@@ -259,14 +255,34 @@ void mm_checkheap(int lineno)
             exit(0);
         }
         /* check address inside bound */
-        if (!inside(ptr, begin, end))
+        if (!inside(ptr, begin, end)) {
             printf("pointer of block %d out of bound, which is %u, "
                 "begin address: %ud, end address: %u\n", 
                 block, (size_t)ptr, (size_t)begin, (size_t)end);
+            exit(0);
+        }
         /* check coalesce */
-        if (!alloc && (!palloc || !nalloc))
+        if (!alloc && (!palloc || !nalloc)) {
             printf("coalesc error of block %d -> | %d | %d | %d |\n", 
                 block, palloc, alloc, nalloc);
+            exit(0);
+        }
+        /* check whether free block is inside free list */
+        if (!alloc) {
+            int inside_list = 0;
+            void *fptr;
+            for (fptr = heap_listp; fptr; fptr = GOTO_SUCC(fptr)) {
+                if (ptr == fptr) {
+                    inside_list = 1;
+                    break;
+                }
+            }
+            if (!inside_list) {  
+               printf("free block %d at %p not in free list, size %d, "
+                "alloc %d\n", block, ptr, size, alloc);
+               exit(0); 
+           }
+        }
     }
 
     /* loop over free list */
@@ -275,6 +291,12 @@ void mm_checkheap(int lineno)
         alloc = GET_ALLOC(HDRP(ptr));
         void *pred = GOTO_PRED(ptr);
         void *succ = GOTO_SUCC(ptr);
+        /* check free or not */
+        if (ptr != heap_listp && alloc) {
+            printf("block at %p in free list is not free, "
+                "size %d, alloc %d\n", ptr, size, alloc);
+            exit(0);
+        }
         /* check if pred and succ point to valid address */
         if (!inside(pred, begin, end)) {
             printf("pred of free block at address %p (size %d, alloc %d) "
@@ -286,9 +308,22 @@ void mm_checkheap(int lineno)
                 "out of bound, point to address %p\n", ptr, size, alloc, succ);
             exit(0);
         }
-        if (ptr != heap_listp && alloc != 0) {
-            printf("block at address %p in free list is not free\n", ptr);
+        /* check consistence between pred, ptr, succ */
+        if (ptr == heap_listp && succ != 0 && GOTO_PRED(succ) != ptr) {
+            printf("pointers not consistant of block 1 at %p, "
+                "pred of next free block is %p\n", ptr, GOTO_PRED(succ));
             exit(0);
+        }
+        else if (succ == 0 && pred != 0 && GOTO_SUCC(pred) != ptr) {
+            printf("pointers not consistant of last free block at %p, "
+                "succ of last free block is %p\n", ptr, GOTO_SUCC(pred));
+            exit(0);
+        }
+        else if (ptr != heap_listp && succ != 0) {
+            if (GOTO_PRED(succ) != ptr || GOTO_SUCC(pred) != ptr) {
+                printf("block pointers not consistant at %p\n", ptr);
+                exit(0);
+            }
         }
     }
 
