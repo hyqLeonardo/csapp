@@ -55,6 +55,7 @@ team_t team = {
 #define CHUNKSIZE   (1 << 12)   /* extend heap by this amount (bytes) */
 
 #define MAX(x, y)   ((x) > (y)? (x) : (y))
+#define MIN(x, y)   ((x) > (y)? (y) : (x))
 
 /* pack a size and allocated bit into a word */
 #define PACK(size, alloc)   ((size) | (alloc))
@@ -162,16 +163,24 @@ void mm_free(void *ptr)
  */
 void *mm_realloc(void *ptr, size_t size)
 {
+    if (ptr == NULL)
+        return mm_malloc(size);
+    if (size == 0) {
+        mm_free(ptr);
+        return NULL;
+    }
+
     void *oldptr = ptr;
+    size_t old_size = GET_SIZE(HDRP(ptr)) - WSIZE;  /* don't copy header */
     void *newptr;
     size_t copySize;
     
+    /* alloc block with enough size */    
     newptr = mm_malloc(size);
     if (newptr == NULL)
       return NULL;
-    copySize = *(size_t *)((char *)oldptr - SIZE_T_SIZE);
-    if (size < copySize)
-      copySize = size;
+    /* copy contents inside old block to new */
+    copySize = (size_t)MIN(size, old_size);
     memcpy(newptr, oldptr, copySize);
     mm_free(oldptr);
     return newptr;
