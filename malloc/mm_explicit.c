@@ -29,8 +29,8 @@ team_t team = {
 };
 
 /* trun on or off heap checker */
-#define checkheap(lineno) mm_checkheap(lineno)
-// #define checkheap(lineno)
+// #define checkheap(lineno) mm_checkheap(lineno)
+#define checkheap(lineno)
 
 
 /* single word (4) or double word (8) alignment */
@@ -267,7 +267,9 @@ void mm_checkheap(int lineno)
                 block, palloc, alloc, nalloc);
             exit(0);
         }
-        /* check whether free block is inside free list */
+        /* check whether free block is inside free list , 
+         * pass this means all free blocks are inside free list
+         */
         if (!alloc) {
             int inside_list = 0;
             void *fptr;
@@ -277,9 +279,11 @@ void mm_checkheap(int lineno)
                     break;
                 }
             }
-            if (!inside_list) {  
+            if (!inside_list) {       
                printf("free block %d at %p not in free list, size %d, "
-                "alloc %d\n", block, ptr, size, alloc);
+                "alloc %d, next block at %p, size %d, alloc %d\n", 
+                block, ptr, size, alloc, NEXT_BLKP(ptr), 
+                GET_SIZE(NEXT_BLKP(ptr)), GET_ALLOC(NEXT_BLKP(ptr)));
                exit(0); 
            }
         }
@@ -294,7 +298,13 @@ void mm_checkheap(int lineno)
         /* check free or not */
         if (ptr != heap_listp && alloc) {
             printf("block at %p in free list is not free, "
-                "size %d, alloc %d\n", ptr, size, alloc);
+                "size %d, alloc %d, next block at %p, size %d, alloc %d\n", 
+                ptr, size, alloc, NEXT_BLKP(ptr), 
+                GET_SIZE(HDRP(NEXT_BLKP(ptr))), 
+                GET_ALLOC(HDRP(NEXT_BLKP(ptr))));
+            printf("has pred at %p, size %d, alloc %d, succ at %p, size %d " 
+                "alloc %d\n", pred, GET_SIZE(HDRP(pred)), GET_ALLOC(HDRP(pred)), 
+                succ, GET_SIZE(HDRP(succ)), GET_ALLOC(HDRP(succ)));
             exit(0);
         }
         /* check if pred and succ point to valid address */
@@ -517,7 +527,7 @@ void place(void *ptr, size_t asize)
         PUT(FTRP(ptr), PACK(size, 1));
         /* set pointers for pred block and succ block of ptr */
         if (GOTO_SUCC(ptr) != 0) {                        /* do this only if there are more than 1 free blocks */
-            MOV(SUCC(GOTO_PRED(ptr)), GOTO_SUCC(ptr));    /* pred -> succ */
+            MOV(SUCC(GOTO_PRED(ptr)), SUCC(ptr));         /* pred -> succ */
             MOV(PRED(GOTO_SUCC(ptr)), PRED(ptr));         /* pred <- succ */
         }
         else 
@@ -527,7 +537,7 @@ void place(void *ptr, size_t asize)
     else {                      /* segmente to 2 blocks */
         /* set pointers for pred block and succ block of ptr */
         if (GOTO_SUCC(ptr) != 0) {                        /* do this only if there are more than 1 free blocks */
-            MOV(SUCC(GOTO_PRED(ptr)), GOTO_SUCC(ptr));    /* pred -> succ */
+            MOV(SUCC(GOTO_PRED(ptr)), SUCC(ptr));         /* pred -> succ */
             MOV(PRED(GOTO_SUCC(ptr)), PRED(ptr));         /* pred <- succ */
         }
         else 
@@ -543,13 +553,13 @@ void place(void *ptr, size_t asize)
 
         /* set pointers for newly segmented block */
         PUT(PRED(nptr), (size_t)heap_listp);        /* start <- nptr */
-        if (GOTO_SUCC(heap_listp) != 0) 
+        if (GOTO_SUCC(heap_listp) != 0) {
             MOV(SUCC(nptr), SUCC(heap_listp));      /* nptr -> old first */
+            /* set pred pointer to new block for old first free block */
+            PUT(PRED(GOTO_SUCC(heap_listp)), (size_t)nptr); /* nptr < old first */
+        }
         else 
             PUT(SUCC(nptr), 0);                     /* nptr -> NULL */
-        /* set pred pointer to new block for old first free block */
-        if (GOTO_SUCC(heap_listp) != 0)
-            PUT(PRED(GOTO_SUCC(heap_listp)), (size_t)nptr); 
         /* set succ to newly freed block for start block */
         PUT(SUCC(heap_listp), (size_t)nptr);
     } 
